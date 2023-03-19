@@ -1,0 +1,47 @@
+#!/usr/bin/env ruby
+
+# Generate files in data/ for every date after the given id.
+
+require 'open-uri'
+
+from_id = Integer(ARGV[0])
+
+cur_id = from_id
+
+loop do
+  response = URI.open("https://www.sbsolver.com/s/#{cur_id}")
+
+  html = response.read
+
+  # March 17, 2023
+  date = html.match(/([a-zA-Z0-9 ,]+): Spelling Bee Answers/)
+  break unless date
+
+  date = Date.strptime(date[1], '%B %d, %Y').iso8601
+  puts "#{cur_id} -- #{date}"
+
+  center_letter = html.match(%r{<span class="bee-center">([A-Z])</span>})[1].downcase
+
+  words = html.scan(%r{https://www.sbsolver.com/h/([a-z]+)}).map(&:first)
+
+  letter_counts = Hash.new(0)
+  words.each do |word|
+    word.split('').uniq.each { |c| letter_counts[c] += 1 }
+  end
+
+  # Put the center letter first.
+  letters = letter_counts.keys.sort_by { |c| c == center_letter ? -1 : 1 }
+
+  if letter_counts[center_letter] != words.length
+    puts 'center letter not used in all words'
+    break
+  end
+
+  File.open("data/#{date}_#{cur_id}", 'w') do |f|
+    f.write(letters.join(''))
+    f.write("\n")
+    f.write(words.join("\n"))
+  end
+
+  cur_id += 1
+end
