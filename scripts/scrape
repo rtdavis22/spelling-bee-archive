@@ -2,6 +2,7 @@
 
 # Generate files in data/ for every date after the given id.
 
+require 'fileutils'
 require 'open-uri'
 
 from_id = Integer(ARGV[0])
@@ -18,6 +19,7 @@ loop do
   break unless date
 
   date = Date.strptime(date[1], '%B %d, %Y').iso8601
+  year = date[...4]
   puts "#{cur_id} -- #{date}"
 
   center_letter = html.match(%r{<span class="bee-center">([A-Z])</span>})[1].downcase
@@ -37,7 +39,8 @@ loop do
     break
   end
 
-  File.open("data/#{date}_#{cur_id}.txt", 'w') do |f|
+  FileUtils.mkdir_p("data/#{year}")
+  File.open("data/#{year}/#{date}_#{cur_id}.txt", 'w') do |f|
     f.write(letters.join(''))
     f.write("\n")
     f.write(words.join("\n"))
