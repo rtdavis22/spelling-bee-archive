@@ -37,7 +37,7 @@ loop do
     break
   end
 
-  File.open("data/#{date}_#{cur_id}", 'w') do |f|
+  File.open("data/#{date}_#{cur_id}.txt", 'w') do |f|
     f.write(letters.join(''))
     f.write("\n")
     f.write(words.join("\n"))
