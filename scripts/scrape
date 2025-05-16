@@ -19,7 +19,7 @@ loop do
   break unless date
 
   date = Date.strptime(date[1], '%B %d, %Y').iso8601
-  year = date[...4]
+  year = date[0...4]
   puts "#{cur_id} -- #{date}"
 
   center_letter = html.match(%r{<span class="bee-center">([A-Z])</span>})[1].downcase

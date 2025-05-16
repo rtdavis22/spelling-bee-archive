@@ -1,0 +1,11 @@
+---
+description: 
+globs: *.rb
+alwaysApply: false
+---
+Never use `unless`.
+Don't write the if condition on the same line as the block (`y if x == 3`)
+For Arrays:
+- Use `map` instead of `collect`.
+- Use `length` instead of `size`.
+- Use `filter` instead of `select`.

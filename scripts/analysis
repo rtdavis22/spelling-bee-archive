@@ -1,0 +1,343 @@
+#!/usr/bin/env ruby
+
+require 'find'
+
+DATA_DIR = File.expand_path('../data', __dir__)
+
+data = {}
+
+class Puzzle
+  attr_reader :id, :date, :letters, :words, :middle_letter, :outer_letters
+
+  def initialize(file_name, letters, words)
+    @date = file_name.split('/').last.split('_').first
+    @letters = letters
+    @middle_letter = @letters[0]
+    @words = words
+    @id = file_name.split('_').last.split('.').first.to_i
+    @outer_letters = @letters[1..]
+  end
+
+  def word_eligible?(word)
+    word.chars.each do |c|
+      if !@letters.include?(c)
+        return false
+      end
+    end
+    if !word.include?(@middle_letter)
+      return false
+    end
+
+    true
+  end
+
+  def includes_word?(word)
+    @words.include?(word)
+  end
+end
+
+def spelling_bee_points(word)
+  # NYT Spelling Bee point system
+  # Words must be at least 4 letters long
+  # 1 point for 4-letter words
+  # 1 point per letter for words longer than 4 letters
+  # Additional 7 points for pangrams (words using all letters)
+  return 0 if word.length < 4
+
+  points = word.length == 4 ? 1 : word.length
+  points += 7 if word.chars.uniq.length == 7
+  points
+end
+
+puzzles = []
+puzzles_by_id = {}
+
+Find.find(DATA_DIR) do |path|
+  next unless path.end_with?('.txt')
+  rel_path = path.sub(/^#{Regexp.escape(DATA_DIR)}\//, '')
+  words = File.readlines(path, chomp: true)
+  puzzle = Puzzle.new(rel_path, [words[0][0]] + words[0][1..].chars, words[1..])
+  puzzles << puzzle
+  puzzles_by_id[puzzle.id] = puzzle
+end
+
+
+puzzles_by_letters = Hash.new { |hash, key| hash[key] = [] }
+puzzles.each do |puzzle|
+  letters = puzzle.letters
+  puzzles_by_letters[letters] << puzzle
+end
+
+# duplicates
+puzzles_by_letters.each do |letters, puzzles|
+  if puzzles.size > 1
+    puts "#{letters} #{puzzles.size}"
+    puzzles.each do |puzzle|
+      puts puzzle.date
+    end
+  end
+end
+
+puzzles_sorted_by_word_count = puzzles.sort_by { |puzzle| -puzzle.words.size }
+
+top_10_puzzles = puzzles_sorted_by_word_count.first(10)
+
+puts "Top 10 puzzles with the most words:"
+top_10_puzzles.each do |puzzle|
+  puts "Date: #{puzzle.date}, Words Count: #{puzzle.words.size}, Letters: #{puzzle.letters.join}"
+end
+
+puzzles_sorted_by_fewest_words = puzzles.sort_by { |puzzle| puzzle.words.size }
+
+bottom_10_puzzles = puzzles_sorted_by_fewest_words.first(10)
+
+puts "Top 10 puzzles with the fewest words:"
+bottom_10_puzzles.each do |puzzle|
+  puts "Date: #{puzzle.date}, Words Count: #{puzzle.words.size}, Letters: #{puzzle.letters.join}"
+end
+
+puzzles_sorted_by_pangram_count = puzzles.sort_by do |puzzle|
+  puzzle.words.count { |word| word.chars.uniq.sort == puzzle.letters.sort }
+end.reverse
+
+top_10_puzzles_with_most_pangrams = puzzles_sorted_by_pangram_count.first(10)
+
+puts "Top 10 puzzles with the most pangrams:"
+top_10_puzzles_with_most_pangrams.each do |puzzle|
+  pangram_count = puzzle.words.count { |word| word.chars.uniq.sort == puzzle.letters.sort }
+  puts "Date: #{puzzle.date}, Pangram Count: #{pangram_count}, Letters: #{puzzle.letters.join}"
+end
+
+puzzles_sorted_by_points = puzzles.sort_by do |puzzle|
+  puzzle.words.sum { |word| spelling_bee_points(word) }
+end.reverse
+
+top_10_puzzles_with_most_points = puzzles_sorted_by_points.first(10)
+
+puts "Top 10 puzzles with the most points:"
+top_10_puzzles_with_most_points.each do |puzzle|
+  total_points = puzzle.words.sum { |word| spelling_bee_points(word) }
+  puts "Date: #{puzzle.date}, Total Points: #{total_points}, Letters: #{puzzle.letters.join}"
+end
+
+puzzles_sorted_by_fewest_points = puzzles.sort_by do |puzzle|
+  puzzle.words.sum { |word| spelling_bee_points(word) }
+end
+
+bottom_10_puzzles_with_fewest_points = puzzles_sorted_by_fewest_points.first(10)
+
+puts "Top 10 puzzles with the fewest points:"
+bottom_10_puzzles_with_fewest_points.each do |puzzle|
+  total_points = puzzle.words.sum { |word| spelling_bee_points(word) }
+  puts "Date: #{puzzle.date}, Total Points: #{total_points}, Letters: #{puzzle.letters.join}"
+end
+
+longest_words = puzzles.flat_map(&:words).uniq.sort_by(&:length).last(10).reverse
+
+puts "Top 10 longest words in any puzzle:"
+longest_words.each do |word|
+  puts "Word: #{word}, Length: #{word.length}"
+end
+
+puzzles_sorted_by_average_word_length = puzzles.sort_by do |puzzle|
+  total_length = puzzle.words.sum(&:length)
+  average_length = total_length.to_f / puzzle.words.size
+  average_length
+end.reverse
+
+top_10_puzzles_with_highest_average_word_length = puzzles_sorted_by_average_word_length.first(10)
+
+puts "Top 10 puzzles with the highest average word length:"
+top_10_puzzles_with_highest_average_word_length.each do |puzzle|
+  total_length = puzzle.words.sum(&:length)
+  average_length = total_length.to_f / puzzle.words.size
+  puts "Date: #{puzzle.date}, Average Word Length: #{average_length.round(2)}, Letters: #{puzzle.letters.join}"
+end
+
+puzzles_sorted_by_four_letter_proportion = puzzles.sort_by do |puzzle|
+  four_letter_count = puzzle.words.count { |word| word.length == 4 }
+  proportion = four_letter_count.to_f / puzzle.words.size
+  proportion
+end.reverse
+
+top_10_puzzles_with_most_four_letter_proportion = puzzles_sorted_by_four_letter_proportion.first(10)
+
+puts "Top 10 puzzles with the largest proportion of 4 letter words:"
+top_10_puzzles_with_most_four_letter_proportion.each do |puzzle|
+  four_letter_count = puzzle.words.count { |word| word.length == 4 }
+  proportion = four_letter_count.to_f / puzzle.words.size
+  puts "Date: #{puzzle.date}, Proportion of 4 Letter Words: #{(proportion * 100).round(2)}%, Letters: #{puzzle.letters.join}"
+end
+
+puzzles_by_letters = Hash.new { |hash, key| hash[key] = [] }
+puzzles.each do |puzzle|
+  letters = puzzle.letters.sort
+  #if puzzles_by_letters[letters].length > 1
+    puts "Date: #{puzzle.date}, Letters: #{letters.join}, # Puzzles with same letters: #{puzzles_by_letters[letters].length}"
+  #end
+  puzzles_by_letters[letters] << puzzle
+end
+
+pangrams = Set.new
+puzzles.each do |puzzle|
+  puzzle.words.each do |word|
+    if word.chars.uniq.length == 7
+      pangrams.add(word)
+    end
+  end
+end
+
+puts "Pangrams: #{pangrams.size}"
+
+puts "Pangram candidates that haven't been used:"
+File.foreach('../unigram_freq.csv').with_index do |line, index|
+  next if index == 0
+  word, count = line.strip.split(',')
+  next if word.include?('s')
+  if word.chars.uniq.length == 7
+    if !pangrams.include?(word)
+      puts "Word: #{word}, Count: #{count}"
+    end
+  end
+  if index > 1000
+    break
+  end
+end
+
+dictionary = Set.new
+puzzles.each do |puzzle|
+  puzzle.words.each do |word|
+    dictionary.add(word)
+  end
+end
+
+candidate = "network"
+candidate_letters = candidate.chars.uniq.to_set
+candidate_letters.each do |center_letter|
+  puts "Center letter: #{center_letter}"
+  valid_words = []
+  dictionary.each do |word|
+    next if !word.include?(center_letter)
+    good = true
+    word.chars.each do |c|
+      if !candidate_letters.include?(c)
+        good = false
+        break
+      end
+    end
+    if good
+      valid_words << word
+    end
+  end
+  puts "Num valid words: #{valid_words.length}, Valid words: #{valid_words.join(', ')}"
+end
+
+# Creating the Spelling Bee Dictionary
+# When we look up a word, we can get one of three responses:
+# 1. Valid
+# 2. Not Valid
+# 3. Not sure if it's valid because we haven't seen a puzzle which could include it
+# Then we can ask things like "What are the most common dictionary words that we're not sure about?"
+# - Words that were added or removed
+
+
+WORDS_ADDED = []
+WORDS_REMOVED = []
+dictionary = Hash.new { |h, k| h[k] = Set.new }
+puzzles.each do |puzzle|
+  puzzle.words.each do |word|
+    letters = word.chars.uniq.sort.join
+    if dictionary.include?(letters) && !dictionary[letters].include?(word)
+      puts "[#{puzzle.date}] WORD ADDED: #{word}"
+      WORDS_ADDED.push(word)
+    end
+  end
+  puzzle.words.each do |word|
+    letters = word.chars.uniq.sort.join
+    dictionary[letters].add(word)
+  end
+
+  # look for words that were removed
+  (1..6).flat_map do |length|
+    puzzle.outer_letters.combination(length).each do |combination|
+      k = (combination + [puzzle.middle_letter]).sort.join
+      dictionary[k].each do |word|
+        if !puzzle.words.include?(word)
+          puts "[#{puzzle.date}] WORD REMOVED: #{word}"
+          WORDS_REMOVED.push(word)
+        end
+      end
+    end
+  end
+end
+
+
+
+class Dictionary
+  WORD_STATUS_PRESENT = 0
+  WORD_STATUS_NOT_PRESENT = 1
+  WORD_STATUS_UNKNOWN = 2
+   
+  def initialize(puzzles)
+    @puzzles = puzzles
+  end
+
+  def word_history(word)
+    letters = word.chars.uniq.sort.join
+    results = []
+    @puzzles.each do |puzzle|
+      if !puzzle.word_eligible?(word)
+        next
+      end
+      results.push([puzzle.id, puzzle.includes_word?(word)])
+    end
+    results
+  end
+
+  def lookup(word)
+    @puzzles.reverse.each do |puzzle|
+      if puzzle.word_eligible?(word)
+        if puzzle.includes_word?(word)
+          return WORD_STATUS_PRESENT
+        else
+          return WORD_STATUS_NOT_PRESENT
+        end
+      end
+    end
+    WORD_STATUS_UNKNOWN
+  end
+end
+
+dictionary = Dictionary.new(puzzles)
+
+WORDS_ADDED.each do |word|
+  results = dictionary.word_history(word)
+  seen_true = false
+  results.each do |date, is_present|
+    if !is_present && seen_true
+      puts "WORD #{word} removed after being added; #{results}"
+      seen_true = false
+    elsif is_present
+      seen_true = true
+    end
+  end
+end
+
+WORDS_REMOVED.uniq.each do |word|
+  results = dictionary.word_history(word)
+  i = 0
+  while results[i][1]
+    i += 1
+  end
+
+  while i < results.length
+    if results[i][1]
+      puts "WORD #{word} added after being removed; #{results}"
+      break
+    end
+    i += 1
+  end
+end
+
+p dictionary.lookup('banana')
+p dictionary.word_history('acceptant')
